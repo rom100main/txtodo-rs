@@ -1,0 +1,19 @@
+[package]
+name = "txtodo"
+version = "0.1.0"
+edition = "2024"
+description = "A todo.txt parser/serializer with extension support and subtask handling"
+license = "MIT"
+repository = "https://github.com/rom100main/txtodo"
+
+[lib]
+name = "txtodo"
+path = "src/lib.rs"
+
+[dependencies]
+indexmap = "2.14.0"
+thiserror = "2.0.18"
+time = { version = "0.3.47", features = ["parsing", "formatting", "macros"] }
+
+[dev-dependencies]
+pretty_assertions = "1"
