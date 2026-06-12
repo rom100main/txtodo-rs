@@ -46,11 +46,6 @@ impl TodoTxtParser {
         &self.handler
     }
 
-    #[must_use]
-    pub fn handle_subtasks(&self) -> bool {
-        self.handle_subtasks
-    }
-
     pub fn parse_file(&self, content: &str) -> Result<Vec<Task>, TxtodoError> {
         let lines: Vec<&str> = content.split('\n').collect();
 
