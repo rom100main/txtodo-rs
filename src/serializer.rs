@@ -15,16 +15,19 @@ impl Default for TodoTxtSerializer {
 }
 
 impl TodoTxtSerializer {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             handler: ExtensionHandler::new(),
         }
     }
 
+    #[must_use]
     pub fn with_handler(handler: ExtensionHandler) -> Self {
         Self { handler }
     }
 
+    #[must_use]
     pub fn handler(&self) -> &ExtensionHandler {
         &self.handler
     }

@@ -29,6 +29,7 @@ impl std::fmt::Debug for TodoTxtExtension {
 }
 
 impl TodoTxtExtension {
+    #[must_use]
     pub fn new(key: impl Into<String>) -> Self {
         Self {
             key: key.into(),
@@ -39,21 +40,25 @@ impl TodoTxtExtension {
         }
     }
 
+    #[must_use]
     pub fn with_parser(mut self, f: ParsingFn) -> Self {
         self.parsing_function = Some(f);
         self
     }
 
+    #[must_use]
     pub fn with_serializer(mut self, f: SerializingFn) -> Self {
         self.serializing_function = Some(f);
         self
     }
 
+    #[must_use]
     pub fn inherit(mut self, b: bool) -> Self {
         self.inherit = b;
         self
     }
 
+    #[must_use]
     pub fn shadow(mut self, b: bool) -> Self {
         self.shadow = b;
         self
@@ -80,6 +85,7 @@ impl Default for ExtensionHandler {
 }
 
 impl ExtensionHandler {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             extensions: HashMap::new(),
@@ -131,14 +137,17 @@ impl ExtensionHandler {
         Ok(self.extensions.remove(&lk).is_some())
     }
 
+    #[must_use]
     pub fn has_extension(&self, key: &str) -> bool {
         self.extensions.contains_key(&key.to_lowercase())
     }
 
+    #[must_use]
     pub fn get_extension(&self, key: &str) -> Option<&TodoTxtExtension> {
         self.extensions.get(&key.to_lowercase())
     }
 
+    #[must_use]
     pub fn all_extensions(&self) -> Vec<&TodoTxtExtension> {
         self.extensions.values().collect()
     }

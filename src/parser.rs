@@ -17,6 +17,7 @@ impl Default for TodoTxtParser {
 }
 
 impl TodoTxtParser {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             handler: ExtensionHandler::new(),
@@ -24,6 +25,7 @@ impl TodoTxtParser {
         }
     }
 
+    #[must_use]
     pub fn with_handler(handler: ExtensionHandler) -> Self {
         Self {
             handler,
@@ -31,6 +33,7 @@ impl TodoTxtParser {
         }
     }
 
+    #[must_use]
     pub fn with_options(handler: ExtensionHandler, handle_subtasks: bool) -> Self {
         Self {
             handler,
@@ -38,10 +41,12 @@ impl TodoTxtParser {
         }
     }
 
+    #[must_use]
     pub fn handler(&self) -> &ExtensionHandler {
         &self.handler
     }
 
+    #[must_use]
     pub fn handle_subtasks(&self) -> bool {
         self.handle_subtasks
     }
@@ -154,7 +159,7 @@ fn attach_subtree(
     Ok(())
 }
 
-fn relink_parents(tasks: &mut [Task]) {
+pub fn relink_parents(tasks: &mut [Task]) {
     for t in tasks.iter_mut() {
         relink_parents_inner(t);
     }

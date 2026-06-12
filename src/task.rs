@@ -61,6 +61,7 @@ impl Priority {
         Ok(Priority(ch))
     }
 
+    #[must_use]
     pub fn as_char(self) -> char {
         self.0
     }
@@ -82,6 +83,7 @@ pub enum ExtensionValue {
 }
 
 impl ExtensionValue {
+    #[must_use]
     pub fn equals(&self, other: &Self) -> bool {
         match (self, other) {
             (ExtensionValue::String(a), ExtensionValue::String(b)) => a == b,
@@ -95,6 +97,7 @@ impl ExtensionValue {
         }
     }
 
+    #[must_use]
     pub fn compare_to(&self, other: &Self) -> Ordering {
         match (self, other) {
             (ExtensionValue::String(a), ExtensionValue::String(b)) => a.cmp(b),
@@ -171,6 +174,7 @@ pub struct Task {
 }
 
 impl Task {
+    #[must_use]
     pub fn parent(&self) -> Option<&Task> {
         self.parent.map(|p| unsafe { p.as_ref() })
     }
@@ -221,6 +225,7 @@ impl TaskPatch {
     }
 }
 
+#[must_use]
 pub fn get_indent_level(line: &str) -> usize {
     line.chars().take_while(|c| c.is_whitespace()).count()
 }
@@ -233,6 +238,7 @@ fn is_priority_token(token: &str) -> bool {
     bytes[0] == b'(' && bytes[2] == b')' && bytes[1].is_ascii_uppercase()
 }
 
+#[must_use]
 pub fn extract_projects_and_contexts(description: &str) -> (Vec<String>, Vec<String>) {
     let mut projects = Vec::new();
     let mut contexts = Vec::new();

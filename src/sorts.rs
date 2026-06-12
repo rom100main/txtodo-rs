@@ -27,6 +27,7 @@ fn reverse(sorter: TaskSorter, dir: SortDirection) -> TaskSorter {
 }
 
 impl TaskSorts {
+    #[must_use]
     pub fn by_context(dir: SortDirection) -> TaskSorter {
         let s = box_s(|a: &Task, b: &Task| {
             a.contexts
@@ -37,6 +38,7 @@ impl TaskSorts {
         reverse(s, dir)
     }
 
+    #[must_use]
     pub fn by_project(dir: SortDirection) -> TaskSorter {
         let s = box_s(|a: &Task, b: &Task| {
             a.projects
@@ -47,6 +49,7 @@ impl TaskSorts {
         reverse(s, dir)
     }
 
+    #[must_use]
     pub fn by_date_created(dir: SortDirection) -> TaskSorter {
         let s = box_s(
             |a: &Task, b: &Task| match (a.creation_date, b.creation_date) {
@@ -59,6 +62,7 @@ impl TaskSorts {
         reverse(s, dir)
     }
 
+    #[must_use]
     pub fn by_date_completed(dir: SortDirection) -> TaskSorter {
         let s = box_s(
             |a: &Task, b: &Task| match (a.completion_date, b.completion_date) {
@@ -71,6 +75,7 @@ impl TaskSorts {
         reverse(s, dir)
     }
 
+    #[must_use]
     pub fn by_priority(dir: SortDirection) -> TaskSorter {
         let s = box_s(|a: &Task, b: &Task| match (a.priority, b.priority) {
             (None, None) => Ordering::Equal,
@@ -81,6 +86,7 @@ impl TaskSorts {
         reverse(s, dir)
     }
 
+    #[must_use]
     pub fn by_extension_field(key: &str, dir: SortDirection) -> TaskSorter {
         let key = key.to_string();
         let s = box_s(move |a: &Task, b: &Task| {
@@ -94,6 +100,7 @@ impl TaskSorts {
         reverse(s, dir)
     }
 
+    #[must_use]
     pub fn by_description(dir: SortDirection) -> TaskSorter {
         let s = box_s(|a: &Task, b: &Task| {
             a.description
@@ -103,41 +110,49 @@ impl TaskSorts {
         reverse(s, dir)
     }
 
+    #[must_use]
     pub fn by_completion_status(dir: SortDirection) -> TaskSorter {
         let s = box_s(|a: &Task, b: &Task| (a.completed as i32).cmp(&(b.completed as i32)));
         reverse(s, dir)
     }
 
+    #[must_use]
     pub fn by_indent_level(dir: SortDirection) -> TaskSorter {
         let s = box_s(|a: &Task, b: &Task| a.indent_level.cmp(&b.indent_level));
         reverse(s, dir)
     }
 
+    #[must_use]
     pub fn by_raw(dir: SortDirection) -> TaskSorter {
         let s = box_s(|a: &Task, b: &Task| a.raw.to_lowercase().cmp(&b.raw.to_lowercase()));
         reverse(s, dir)
     }
 
+    #[must_use]
     pub fn by_context_count(dir: SortDirection) -> TaskSorter {
         let s = box_s(|a: &Task, b: &Task| a.contexts.len().cmp(&b.contexts.len()));
         reverse(s, dir)
     }
 
+    #[must_use]
     pub fn by_project_count(dir: SortDirection) -> TaskSorter {
         let s = box_s(|a: &Task, b: &Task| a.projects.len().cmp(&b.projects.len()));
         reverse(s, dir)
     }
 
+    #[must_use]
     pub fn by_subtask_count(dir: SortDirection) -> TaskSorter {
         let s = box_s(|a: &Task, b: &Task| a.subtasks.len().cmp(&b.subtasks.len()));
         reverse(s, dir)
     }
 
+    #[must_use]
     pub fn by_extension_count(dir: SortDirection) -> TaskSorter {
         let s = box_s(|a: &Task, b: &Task| a.extensions.len().cmp(&b.extensions.len()));
         reverse(s, dir)
     }
 
+    #[must_use]
     pub fn composite(sorters: &[&TaskSorter]) -> TaskSorter {
         let owned: Vec<TaskSorter> = sorters.iter().map(|s| (*s).clone()).collect();
         box_s(move |a: &Task, b: &Task| {
@@ -151,6 +166,7 @@ impl TaskSorts {
         })
     }
 
+    #[must_use]
     pub fn then(primary: &TaskSorter, secondary: &TaskSorter) -> TaskSorter {
         Self::composite(&[primary, secondary])
     }

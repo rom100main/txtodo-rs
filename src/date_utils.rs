@@ -3,6 +3,7 @@ use time::{Date, Month, format_description::BorrowedFormatItem, macros::format_d
 
 const DATE_FORMAT: &[BorrowedFormatItem<'_>] = format_description!("[year]-[month]-[day]");
 
+#[must_use]
 pub fn is_date(token: &str) -> bool {
     if token.len() != 10 {
         return false;
@@ -37,6 +38,7 @@ pub fn parse_date(date_str: &str) -> Result<Date, TxtodoError> {
     })
 }
 
+#[must_use]
 pub fn format_date(date: Date) -> String {
     date.format(DATE_FORMAT)
         .unwrap_or_else(|_| String::from("invalid"))

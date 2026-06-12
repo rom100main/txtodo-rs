@@ -92,18 +92,22 @@ impl TodoTxt {
         self.auto_save = on;
     }
 
+    #[must_use]
     pub fn extension_handler(&self) -> &ExtensionHandler {
         &self.handler
     }
 
+    #[must_use]
     pub fn extension_handler_mut(&mut self) -> &mut ExtensionHandler {
         &mut self.handler
     }
 
+    #[must_use]
     pub fn list(&self) -> Vec<&Task> {
         self.list_filtered(None, None)
     }
 
+    #[must_use]
     pub fn list_filtered(
         &self,
         filter: Option<&crate::TaskFilter>,
@@ -122,6 +126,7 @@ impl TodoTxt {
         flat
     }
 
+    #[must_use]
     pub fn filter(&self, filter: &crate::TaskFilter) -> Vec<Task> {
         let mut out = Vec::new();
         for t in &self.tasks {

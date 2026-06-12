@@ -47,6 +47,7 @@ pub enum TxtodoError {
 }
 
 impl TxtodoError {
+    #[must_use]
     pub fn code(&self) -> &'static str {
         match self {
             TxtodoError::Parse { .. } => "PARSE_ERROR",
