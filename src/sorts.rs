@@ -8,7 +8,7 @@ pub enum SortDirection {
     Desc,
 }
 
-pub type TaskSorter = Rc<dyn Fn(&Task, &Task) -> Ordering>;
+pub(crate) type TaskSorter = Rc<dyn Fn(&Task, &Task) -> Ordering>;
 
 pub struct TaskSorts;
 

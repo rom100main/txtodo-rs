@@ -97,8 +97,7 @@ impl ExtensionValue {
         }
     }
 
-    #[must_use]
-    pub fn compare_to(&self, other: &Self) -> Ordering {
+    pub(crate) fn compare_to(&self, other: &Self) -> Ordering {
         match (self, other) {
             (ExtensionValue::String(a), ExtensionValue::String(b)) => a.cmp(b),
             (ExtensionValue::Number(a), ExtensionValue::Number(b)) => {
@@ -194,7 +193,7 @@ pub struct TaskPatch {
 }
 
 impl TaskPatch {
-    pub fn apply(self, task: &mut Task) {
+    pub(crate) fn apply(self, task: &mut Task) {
         if let Some(v) = self.raw {
             task.raw = v;
         }
@@ -225,8 +224,7 @@ impl TaskPatch {
     }
 }
 
-#[must_use]
-pub fn get_indent_level(line: &str) -> usize {
+fn get_indent_level(line: &str) -> usize {
     line.chars().take_while(|c| c.is_whitespace()).count()
 }
 
@@ -238,8 +236,7 @@ fn is_priority_token(token: &str) -> bool {
     bytes[0] == b'(' && bytes[2] == b')' && bytes[1].is_ascii_uppercase()
 }
 
-#[must_use]
-pub fn extract_projects_and_contexts(description: &str) -> (Vec<String>, Vec<String>) {
+fn extract_projects_and_contexts(description: &str) -> (Vec<String>, Vec<String>) {
     let mut projects = Vec::new();
     let mut contexts = Vec::new();
     let chars: Vec<char> = description.chars().collect();

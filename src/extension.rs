@@ -10,10 +10,10 @@ pub type SerializingFn = Arc<dyn Fn(&ExtensionValue) -> Result<String, TxtodoErr
 #[derive(Clone)]
 pub struct TodoTxtExtension {
     pub key: String,
-    pub parsing_function: Option<ParsingFn>,
-    pub serializing_function: Option<SerializingFn>,
-    pub inherit: bool,
-    pub shadow: bool,
+    pub(crate) parsing_function: Option<ParsingFn>,
+    pub(crate) serializing_function: Option<SerializingFn>,
+    pub(crate) inherit: bool,
+    pub(crate) shadow: bool,
 }
 
 impl std::fmt::Debug for TodoTxtExtension {
@@ -92,7 +92,7 @@ impl ExtensionHandler {
         }
     }
 
-    pub fn with_extensions(
+    pub(crate) fn with_extensions(
         exts: impl IntoIterator<Item = TodoTxtExtension>,
     ) -> Result<Self, TxtodoError> {
         let mut h = Self::new();
@@ -152,7 +152,7 @@ impl ExtensionHandler {
         self.extensions.values().collect()
     }
 
-    pub fn parse_extensions(
+    pub(crate) fn parse_extensions(
         &self,
         text: &str,
         parent: Option<&Task>,
@@ -206,7 +206,7 @@ impl ExtensionHandler {
         Ok(extensions)
     }
 
-    pub fn serialize_extensions(
+    pub(crate) fn serialize_extensions(
         &self,
         extensions: &IndexMap<String, ExtensionValue>,
     ) -> Result<Vec<String>, TxtodoError> {

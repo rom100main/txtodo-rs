@@ -34,7 +34,7 @@ impl TodoTxtParser {
     }
 
     #[must_use]
-    pub fn with_options(handler: ExtensionHandler, handle_subtasks: bool) -> Self {
+    pub(crate) fn with_options(handler: ExtensionHandler, handle_subtasks: bool) -> Self {
         Self {
             handler,
             handle_subtasks,
@@ -121,7 +121,7 @@ impl TodoTxtParser {
         Ok(out)
     }
 
-    pub fn parse_line(&self, line: &str) -> Result<Task, TxtodoError> {
+    pub(crate) fn parse_line(&self, line: &str) -> Result<Task, TxtodoError> {
         build_task_from_line(line, &self.handler, None)
     }
 }
@@ -159,7 +159,7 @@ fn attach_subtree(
     Ok(())
 }
 
-pub fn relink_parents(tasks: &mut [Task]) {
+fn relink_parents(tasks: &mut [Task]) {
     for t in tasks.iter_mut() {
         relink_parents_inner(t);
     }

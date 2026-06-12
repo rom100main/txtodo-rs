@@ -32,12 +32,12 @@ impl From<Task> for TaskInput {
 
 pub struct TodoTxt {
     pub tasks: Vec<Task>,
-    pub file_path: Option<String>,
-    pub auto_save: bool,
-    pub handle_subtasks: bool,
-    pub parser: TodoTxtParser,
-    pub serializer: TodoTxtSerializer,
-    pub handler: ExtensionHandler,
+    pub(crate) file_path: Option<String>,
+    pub(crate) auto_save: bool,
+    pub(crate) handle_subtasks: bool,
+    pub(crate) parser: TodoTxtParser,
+    pub(crate) serializer: TodoTxtSerializer,
+    pub(crate) handler: ExtensionHandler,
 }
 
 impl std::fmt::Debug for TodoTxt {
