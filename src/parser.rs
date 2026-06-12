@@ -154,7 +154,7 @@ fn attach_subtree(
     Ok(())
 }
 
-pub fn relink_parents(tasks: &mut [Task]) {
+fn relink_parents(tasks: &mut [Task]) {
     for t in tasks.iter_mut() {
         relink_parents_inner(t);
     }

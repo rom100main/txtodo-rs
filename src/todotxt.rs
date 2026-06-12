@@ -75,7 +75,6 @@ impl TodoTxt {
         let path_str = resolve_path(self.file_path.as_deref(), file_path)?;
         let content = fs::read_to_string(&path_str)?;
         self.tasks = self.parser.parse_file(&content)?;
-        crate::parser::relink_parents(&mut self.tasks);
         if self.file_path.is_none() {
             self.file_path = Some(path_str);
         }
@@ -199,7 +198,6 @@ impl TodoTxt {
             let insert_at = (resolved as usize).min(raws.len());
             raws.insert(insert_at, task.raw.clone());
             self.tasks = self.parser.parse_file(&raws.join("\n"))?;
-            crate::parser::relink_parents(&mut self.tasks);
         } else {
             let insert_at = (resolved as usize).min(self.tasks.len());
             self.tasks.insert(insert_at, task);
