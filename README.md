@@ -276,7 +276,15 @@ Each variant has a `code()` method returning a string identifier (e.g. `"PARSE_E
 
 ## Support
 
-For bug reports and feature requests, please fill an issue at [GitHub repository](https://github.com/rom100main/txtodo/issues).
+For bug reports and feature requests, please fill an issue at [GitHub repository](https://github.com/rom100main/todotxt-ts/issues).
+
+## Changelog
+
+See [CHANGELOG](CHANGELOG.md) for a list of changes in each version.
+
+## Development
+
+For development information, see [CONTRIBUTING](CONTRIBUTING.md).
 
 ## License
 
