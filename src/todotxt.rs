@@ -6,7 +6,6 @@ use crate::serializer::TodoTxtSerializer;
 use crate::task::Task;
 use crate::task::TaskPatch;
 use std::fs;
-use std::path::Path;
 
 pub enum TaskInput {
     Line(String),
@@ -197,20 +196,12 @@ impl TodoTxt {
         if self.handle_subtasks {
             // Re-parse the whole file with the new raw line inserted.
             let mut raws: Vec<String> = self.list().iter().map(|t| t.raw.clone()).collect();
-            let insert_at = if task.indent_level > 0 || index >= 0 {
-                (resolved as usize + 1).min(raws.len())
-            } else {
-                (resolved as usize).min(raws.len())
-            };
+            let insert_at = (resolved as usize).min(raws.len());
             raws.insert(insert_at, task.raw.clone());
             self.tasks = self.parser.parse_file(&raws.join("\n"))?;
             crate::parser::relink_parents(&mut self.tasks);
         } else {
-            let insert_at = if index >= 0 {
-                (resolved as usize + 1).min(self.tasks.len())
-            } else {
-                (resolved as usize).min(self.tasks.len())
-            };
+            let insert_at = (resolved as usize).min(self.tasks.len());
             self.tasks.insert(insert_at, task);
         }
         self.save_if_needed()
