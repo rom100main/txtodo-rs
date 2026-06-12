@@ -119,13 +119,13 @@ impl TodoTxtSerializer {
 
 fn strip_extension_tokens(text: &str) -> String {
     // Match pattern: (optional whitespace)(word chars)(:)(non-whitespace)+
-    // Mirrors regex /\s+\w+:[^\s]+/g
+    // Mirrors regex /(\s+|^)\w+:[^\s]+/g
     let mut out = String::with_capacity(text.len());
     let chars: Vec<char> = text.chars().collect();
     let mut i = 0;
     while i < chars.len() {
-        if chars[i].is_whitespace() {
-            // Find token start
+        let at_start = i == 0;
+        if at_start || chars[i].is_whitespace() {
             let ws_start = i;
             while i < chars.len() && chars[i].is_whitespace() {
                 i += 1;
@@ -153,7 +153,7 @@ fn strip_extension_tokens(text: &str) -> String {
                     continue;
                 }
             } else {
-                // Plain whitespace + word
+                // Plain whitespace or start-of-string + word
                 let s: String = chars[ws_start..i].iter().collect();
                 out.push_str(&s);
                 continue;

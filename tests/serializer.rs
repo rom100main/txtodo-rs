@@ -91,3 +91,13 @@ fn empty_lines_serialized() {
     let out = s.serialize_tasks(&tasks).unwrap();
     assert_eq!(out, content);
 }
+
+#[test]
+fn extension_at_start_not_duplicated() {
+    let s = TodoTxtSerializer::new();
+    let p = TodoTxtParser::new();
+    let line = "n:2 blabla";
+    let tasks = p.parse_file(line).unwrap();
+    let out = s.serialize_tasks(&tasks).unwrap();
+    assert_eq!(out, "blabla n:2");
+}
