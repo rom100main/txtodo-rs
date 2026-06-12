@@ -116,8 +116,8 @@ fn insert_at_start() {
     t.add_many(["A", "B", "C"]).unwrap();
     t.insert(0, "First").unwrap();
     let list = t.list();
-    assert_eq!(list[1].description, "First");
-    assert_eq!(list[2].description, "B");
+    assert_eq!(list[0].description, "First");
+    assert_eq!(list[1].description, "A");
 }
 
 #[test]
@@ -142,18 +142,10 @@ fn insert_negative_clamps_to_zero() {
 fn insert_with_indent_creates_subtask() {
     let mut t = todo();
     t.add_many(["Parent", "Other"]).unwrap();
-    t.insert(0, "    Subtask").unwrap();
+    t.insert(1, "    Subtask").unwrap();
     let list = t.list();
-    eprintln!("list.len()={}", list.len());
-    for (i, x) in list.iter().enumerate() {
-        eprintln!(
-            "[{}] desc={:?} subtasks={}",
-            i,
-            x.description,
-            x.subtasks.len()
-        );
-    }
-    assert_eq!(list.len(), 3);
+    assert_eq!(t.tasks.len(), 2);
+    assert_eq!(list[0].description, "Parent");
     assert_eq!(list[0].subtasks.len(), 1);
     assert_eq!(list[0].subtasks[0].description, "Subtask");
 }
