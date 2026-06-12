@@ -236,7 +236,6 @@ fn is_priority_token(token: &str) -> bool {
 pub fn extract_projects_and_contexts(description: &str) -> (Vec<String>, Vec<String>) {
     let mut projects = Vec::new();
     let mut contexts = Vec::new();
-    let bytes = description.as_bytes();
     let chars: Vec<char> = description.chars().collect();
 
     let mut i = 0;
@@ -272,7 +271,6 @@ pub fn extract_projects_and_contexts(description: &str) -> (Vec<String>, Vec<Str
             i += 1;
         }
     }
-    let _ = bytes; // suppress unused
     (projects, contexts)
 }
 
