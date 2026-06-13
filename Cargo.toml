@@ -8,7 +8,7 @@ repository = "https://github.com/rom100main/txtodo"
 readme = "README.md"
 keywords = ["todo", "todo.txt", "parser", "task", "productivity"]
 categories = ["parser-implementations"]
-exclude = ["CONTRIBUTING.md", "CHANGELOG.md", "todo.txt", "temp/"]
+exclude = ["CONTRIBUTING.md", "CHANGELOG.md", "todo.txt", "temp/", ".github/"]
 
 [lib]
 name = "txtodo"
