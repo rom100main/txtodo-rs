@@ -5,6 +5,10 @@ edition = "2024"
 description = "A todo.txt parser/serializer with extension support and subtask handling"
 license = "MIT"
 repository = "https://github.com/rom100main/txtodo"
+readme = "README.md"
+keywords = ["todo", "todo.txt", "parser", "task", "productivity"]
+categories = ["parser-implementations"]
+exclude = ["CONTRIBUTING.md", "CHANGELOG.md", "todo.txt", "temp/"]
 
 [lib]
 name = "txtodo"
