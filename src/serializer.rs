@@ -3,6 +3,23 @@ use crate::error::TxtodoError;
 use crate::extension::ExtensionHandler;
 use crate::task::Task;
 
+/// Serializer that converts [`Task`]s back into the todo.txt format.
+///
+/// Supports custom [`ExtensionHandler`]s for serializing extension key-value pairs.
+///
+/// # Examples
+///
+/// ```
+/// # use txtodo::*;
+/// # fn main() -> Result<(), TxtodoError> {
+/// let parser = TodoTxtParser::new();
+/// let tasks = parser.parse_file("(A) 2024-01-15 Buy milk @home +shopping")?;
+/// let serializer = TodoTxtSerializer::new();
+/// let output = serializer.serialize_tasks(&tasks)?;
+/// assert!(output.contains("Buy milk"));
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Debug)]
 pub struct TodoTxtSerializer {
     handler: ExtensionHandler,
@@ -15,6 +32,7 @@ impl Default for TodoTxtSerializer {
 }
 
 impl TodoTxtSerializer {
+    /// Creates a new serializer with default settings (no extensions).
     #[must_use]
     pub fn new() -> Self {
         Self {
@@ -22,16 +40,26 @@ impl TodoTxtSerializer {
         }
     }
 
+    /// Creates a new serializer with a custom [`ExtensionHandler`].
     #[must_use]
     pub fn with_handler(handler: ExtensionHandler) -> Self {
         Self { handler }
     }
 
+    /// Returns a reference to the serializer's [`ExtensionHandler`].
     #[must_use]
     pub fn handler(&self) -> &ExtensionHandler {
         &self.handler
     }
 
+    /// Serializes a slice of [`Task`]s into a single todo.txt string.
+    ///
+    /// Each task (including its subtasks) is rendered on its own line,
+    /// with subtasks indented according to their nesting level.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`TxtodoError::Serialization`] if any task fails to serialize.
     pub fn serialize_tasks(&self, tasks: &[Task]) -> Result<String, TxtodoError> {
         let mut lines: Vec<String> = Vec::new();
         for task in tasks {
@@ -40,6 +68,13 @@ impl TodoTxtSerializer {
         Ok(lines.join("\n"))
     }
 
+    /// Serializes a single [`Task`] (and its subtasks) into a list of lines.
+    ///
+    /// Returns one line per task/subtask, with indentation reflecting the subtask hierarchy.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`TxtodoError::Serialization`] if the task or any of its subtasks fail to serialize.
     pub fn serialize_task(&self, task: &Task) -> Result<Vec<String>, TxtodoError> {
         let mut out = Vec::new();
         match self.serialize_single(task, task.indent_level) {

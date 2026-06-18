@@ -4,7 +4,7 @@ use time::{Date, Month, format_description::BorrowedFormatItem, macros::format_d
 const DATE_FORMAT: &[BorrowedFormatItem<'_>] = format_description!("[year]-[month]-[day]");
 
 #[must_use]
-pub fn is_date(token: &str) -> bool {
+pub(crate) fn is_date(token: &str) -> bool {
     if token.len() != 10 {
         return false;
     }
@@ -16,7 +16,7 @@ pub fn is_date(token: &str) -> bool {
         && bytes[8..10].iter().all(|b| b.is_ascii_digit())
 }
 
-pub fn parse_date(date_str: &str) -> Result<Date, TxtodoError> {
+pub(crate) fn parse_date(date_str: &str) -> Result<Date, TxtodoError> {
     if !is_date(date_str) {
         return Err(TxtodoError::Date {
             message: format!("Invalid date format: {date_str}"),
@@ -39,7 +39,7 @@ pub fn parse_date(date_str: &str) -> Result<Date, TxtodoError> {
 }
 
 #[must_use]
-pub fn format_date(date: Date) -> String {
+pub(crate) fn format_date(date: Date) -> String {
     date.format(DATE_FORMAT)
         .unwrap_or_else(|_| String::from("invalid"))
 }

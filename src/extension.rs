@@ -4,11 +4,62 @@ use indexmap::IndexMap;
 use std::collections::HashMap;
 use std::sync::Arc;
 
+/// A thread-safe function pointer for parsing a raw string value into an [`ExtensionValue`].
+///
+/// The function receives the raw string extracted from a todo.txt line (after the `key:` prefix)
+/// and must return an [`ExtensionValue`] on success.
+/// Return a [`TxtodoError`] to signal a parse failure.
+///
+/// # Signature
+///
+/// ```text
+/// fn(raw_value: &str) -> Result<ExtensionValue, TxtodoError>
+/// ```
 pub type ParsingFn = Arc<dyn Fn(&str) -> Result<ExtensionValue, TxtodoError> + Send + Sync>;
+
+/// A thread-safe function pointer for serializing an [`ExtensionValue`] back into a string.
+///
+/// The function receives an [`ExtensionValue`] and produces its string representation,
+/// which will be appended after the `key:` prefix when writing todo.txt lines.
+///
+/// # Signature
+///
+/// ```text
+/// fn(value: &ExtensionValue) -> Result<String, TxtodoError>
+/// ```
 pub type SerializingFn = Arc<dyn Fn(&ExtensionValue) -> Result<String, TxtodoError> + Send + Sync>;
 
+/// A custom extension definition for the todo.txt format.
+///
+/// Extensions allow storing arbitrary `key:value` pairs in todo.txt task lines.
+/// Use the builder methods [`with_parser`](Self::with_parser),
+/// [`with_serializer`](Self::with_serializer), [`inherit`](Self::inherit),
+/// and [`shadow`](Self::shadow) to configure behaviour,
+/// then register the extension with [`ExtensionHandler::add_extension`].
+///
+/// When no custom parser is provided, values are auto-detected as
+/// booleans, numbers, dates, quoted strings, comma-separated lists, or plain strings.
+///
+/// # Examples
+///
+/// ```rust
+/// use txtodo::*;
+/// use std::sync::Arc;
+///
+/// fn main() -> Result<(), TxtodoError> {
+///     let ext = TodoTxtExtension::new("pri")
+///         .inherit(false)
+///         .shadow(true);
+///
+///     let mut handler = ExtensionHandler::new();
+///     handler.add_extension(ext)?;
+///     assert!(handler.has_extension("pri"));
+///     Ok(())
+/// }
+/// ```
 #[derive(Clone)]
 pub struct TodoTxtExtension {
+    /// The extension key as it appears in todo.txt lines (e.g. `"due"` in `due:2025-01-01`).
     pub key: String,
     pub(crate) parsing_function: Option<ParsingFn>,
     pub(crate) serializing_function: Option<SerializingFn>,
@@ -29,6 +80,22 @@ impl std::fmt::Debug for TodoTxtExtension {
 }
 
 impl TodoTxtExtension {
+    /// Creates a new extension with the given `key`.
+    ///
+    /// By default [`inherit`](Self::inherit) and [`shadow`](Self::shadow) are both `true`,
+    /// and no custom parser or serializer is set (auto-detection is used).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use txtodo::*;
+    ///
+    /// fn main() -> Result<(), TxtodoError> {
+    ///     let ext = TodoTxtExtension::new("due");
+    ///     assert_eq!(ext.key, "due");
+    ///     Ok(())
+    /// }
+    /// ```
     #[must_use]
     pub fn new(key: impl Into<String>) -> Self {
         Self {
@@ -40,24 +107,98 @@ impl TodoTxtExtension {
         }
     }
 
+    /// Attaches a custom parsing function to this extension.
+    ///
+    /// When set, the parser is called instead of the default auto-detection logic
+    /// whenever a `key:value` pair with this extension's key is encountered.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use txtodo::*;
+    /// use std::sync::Arc;
+    ///
+    /// fn main() -> Result<(), TxtodoError> {
+    ///     let ext = TodoTxtExtension::new("pri").with_parser(Arc::new(|raw| {
+    ///         Ok(ExtensionValue::String(raw.to_uppercase()))
+    ///     }));
+    ///     let mut handler = ExtensionHandler::new();
+    ///     handler.add_extension(ext)?;
+    ///     Ok(())
+    /// }
+    /// ```
     #[must_use]
     pub fn with_parser(mut self, f: ParsingFn) -> Self {
         self.parsing_function = Some(f);
         self
     }
 
+    /// Attaches a custom serialization function to this extension.
+    ///
+    /// When set, the serializer is called instead of the default serialization
+    /// whenever an [`ExtensionValue`] for this key needs to be written back to a string.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use txtodo::*;
+    /// use std::sync::Arc;
+    ///
+    /// fn main() -> Result<(), TxtodoError> {
+    ///     let ext = TodoTxtExtension::new("pri").with_serializer(Arc::new(|val| {
+    ///         Ok(val.to_string().to_lowercase())
+    ///     }));
+    ///     let mut handler = ExtensionHandler::new();
+    ///     handler.add_extension(ext)?;
+    ///     Ok(())
+    /// }
+    /// ```
     #[must_use]
     pub fn with_serializer(mut self, f: SerializingFn) -> Self {
         self.serializing_function = Some(f);
         self
     }
 
+    /// Sets whether this extension's value is inherited from a parent task.
+    ///
+    /// When `true` (the default), subtasks copy this extension's value from their parent during parsing.
+    /// When `false`, the parent's value is ignored for this key.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use txtodo::*;
+    ///
+    /// fn main() -> Result<(), TxtodoError> {
+    ///     let ext = TodoTxtExtension::new("project").inherit(false);
+    ///     let mut handler = ExtensionHandler::new();
+    ///     handler.add_extension(ext)?;
+    ///     Ok(())
+    /// }
+    /// ```
     #[must_use]
     pub fn inherit(mut self, b: bool) -> Self {
         self.inherit = b;
         self
     }
 
+    /// Sets whether this extension's value shadows (replaces) the parent's value.
+    ///
+    /// When `true` (the default), a value on the current task fully replaces the parent's value for the same key.
+    /// When `false`, both values are collected into an [`ExtensionValue::Array`].
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use txtodo::*;
+    ///
+    /// fn main() -> Result<(), TxtodoError> {
+    ///     let ext = TodoTxtExtension::new("tag").shadow(false);
+    ///     let mut handler = ExtensionHandler::new();
+    ///     handler.add_extension(ext)?;
+    ///     Ok(())
+    /// }
+    /// ```
     #[must_use]
     pub fn shadow(mut self, b: bool) -> Self {
         self.shadow = b;
@@ -65,6 +206,25 @@ impl TodoTxtExtension {
     }
 }
 
+/// A registry of [`TodoTxtExtension`]s that handles parsing and serializing `key:value` pairs in todo.txt task lines.
+///
+/// Extensions are stored with case-insensitive keys.
+/// Use [`add_extension`](Self::add_extension) to register extensions and then pass the handler to the task parsing/serialization pipeline.
+///
+/// # Examples
+///
+/// ```rust
+/// use txtodo::*;
+///
+/// fn main() -> Result<(), TxtodoError> {
+///     let mut handler = ExtensionHandler::new();
+///     handler.add_extension(TodoTxtExtension::new("due"))?;
+///     handler.add_extension(TodoTxtExtension::new("pri"))?;
+///     assert!(handler.has_extension("due"));
+///     assert_eq!(handler.all_extensions().len(), 2);
+///     Ok(())
+/// }
+/// ```
 #[derive(Clone)]
 pub struct ExtensionHandler {
     extensions: HashMap<String, TodoTxtExtension>,
@@ -85,6 +245,19 @@ impl Default for ExtensionHandler {
 }
 
 impl ExtensionHandler {
+    /// Creates an empty extension handler with no registered extensions.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use txtodo::*;
+    ///
+    /// fn main() -> Result<(), TxtodoError> {
+    ///     let handler = ExtensionHandler::new();
+    ///     assert!(handler.all_extensions().is_empty());
+    ///     Ok(())
+    /// }
+    /// ```
     #[must_use]
     pub fn new() -> Self {
         Self {
@@ -102,6 +275,28 @@ impl ExtensionHandler {
         Ok(h)
     }
 
+    /// Registers a new extension in the handler.
+    ///
+    /// The extension key must be non-empty (after trimming) and must not collide
+    /// with an already-registered extension (comparison is case-insensitive).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`TxtodoError::Validation`] if the key is empty or whitespace-only.
+    /// Returns [`TxtodoError::Extension`] if an extension with the same key already exists.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use txtodo::*;
+    ///
+    /// fn main() -> Result<(), TxtodoError> {
+    ///     let mut handler = ExtensionHandler::new();
+    ///     handler.add_extension(TodoTxtExtension::new("due"))?;
+    ///     assert!(handler.has_extension("due"));
+    ///     Ok(())
+    /// }
+    /// ```
     pub fn add_extension(&mut self, extension: TodoTxtExtension) -> Result<(), TxtodoError> {
         if extension.key.trim().is_empty() {
             return Err(TxtodoError::Validation {
@@ -120,6 +315,29 @@ impl ExtensionHandler {
         Ok(())
     }
 
+    /// Removes a previously registered extension by key.
+    ///
+    /// Returns `true` if the extension was present and removed.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`TxtodoError::Validation`] if the key is empty.
+    /// Returns [`TxtodoError::Extension`] if no extension with that key exists.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use txtodo::*;
+    ///
+    /// fn main() -> Result<(), TxtodoError> {
+    ///     let mut handler = ExtensionHandler::new();
+    ///     handler.add_extension(TodoTxtExtension::new("due"))?;
+    ///     let removed = handler.remove_extension("due")?;
+    ///     assert!(removed);
+    ///     assert!(!handler.has_extension("due"));
+    ///     Ok(())
+    /// }
+    /// ```
     pub fn remove_extension(&mut self, key: &str) -> Result<bool, TxtodoError> {
         if key.is_empty() {
             return Err(TxtodoError::Validation {
@@ -137,16 +355,67 @@ impl ExtensionHandler {
         Ok(self.extensions.remove(&lk).is_some())
     }
 
+    /// Returns `true` if an extension with the given key is registered.
+    ///
+    /// The lookup is case-insensitive.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use txtodo::*;
+    ///
+    /// fn main() -> Result<(), TxtodoError> {
+    ///     let mut handler = ExtensionHandler::new();
+    ///     handler.add_extension(TodoTxtExtension::new("due"))?;
+    ///     assert!(handler.has_extension("DUE"));
+    ///     assert!(!handler.has_extension("pri"));
+    ///     Ok(())
+    /// }
+    /// ```
     #[must_use]
     pub fn has_extension(&self, key: &str) -> bool {
         self.extensions.contains_key(&key.to_lowercase())
     }
 
+    /// Returns a reference to the extension registered under the given key, or `None`.
+    ///
+    /// The lookup is case-insensitive.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use txtodo::*;
+    ///
+    /// fn main() -> Result<(), TxtodoError> {
+    ///     let mut handler = ExtensionHandler::new();
+    ///     handler.add_extension(TodoTxtExtension::new("due"))?;
+    ///     let ext = handler.get_extension("due");
+    ///     assert!(ext.is_some());
+    ///     assert_eq!(ext.unwrap().key, "due");
+    ///     Ok(())
+    /// }
+    /// ```
     #[must_use]
     pub fn get_extension(&self, key: &str) -> Option<&TodoTxtExtension> {
         self.extensions.get(&key.to_lowercase())
     }
 
+    /// Returns references to all registered extensions.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use txtodo::*;
+    ///
+    /// fn main() -> Result<(), TxtodoError> {
+    ///     let mut handler = ExtensionHandler::new();
+    ///     handler.add_extension(TodoTxtExtension::new("due"))?;
+    ///     handler.add_extension(TodoTxtExtension::new("pri"))?;
+    ///     let all = handler.all_extensions();
+    ///     assert_eq!(all.len(), 2);
+    ///     Ok(())
+    /// }
+    /// ```
     #[must_use]
     pub fn all_extensions(&self) -> Vec<&TodoTxtExtension> {
         self.extensions.values().collect()

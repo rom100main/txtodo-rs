@@ -4,6 +4,22 @@ use crate::task::{Task, build_task_from_line};
 use indexmap::IndexMap;
 use std::ptr::NonNull;
 
+/// Parser that converts raw todo.txt content into [`Task`]s.
+///
+/// Supports custom [`ExtensionHandler`]s for parsing extension key-value pairs and optional hierarchical subtask handling.
+///
+/// # Examples
+///
+/// ```
+/// # use txtodo::*;
+/// # fn main() -> Result<(), TxtodoError> {
+/// let parser = TodoTxtParser::new();
+/// let tasks = parser.parse_file("(A) 2024-01-15 Buy milk @home +shopping")?;
+/// assert_eq!(tasks.len(), 1);
+/// assert!(tasks[0].description.contains("Buy milk"));
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Debug)]
 pub struct TodoTxtParser {
     handler: ExtensionHandler,
@@ -17,6 +33,7 @@ impl Default for TodoTxtParser {
 }
 
 impl TodoTxtParser {
+    /// Creates a new parser with default settings (no extensions, subtasks enabled).
     #[must_use]
     pub fn new() -> Self {
         Self {
@@ -25,6 +42,9 @@ impl TodoTxtParser {
         }
     }
 
+    /// Creates a new parser with a custom [`ExtensionHandler`].
+    ///
+    /// Subtask handling is enabled by default.
     #[must_use]
     pub fn with_handler(handler: ExtensionHandler) -> Self {
         Self {
@@ -41,11 +61,21 @@ impl TodoTxtParser {
         }
     }
 
+    /// Returns a reference to the parser's [`ExtensionHandler`].
     #[must_use]
     pub fn handler(&self) -> &ExtensionHandler {
         &self.handler
     }
 
+    /// Parses the full contents of a todo.txt file into a list of [`Task`]s.
+    ///
+    /// When subtask handling is enabled (the default),
+    /// tasks are assembled into a hierarchy based on indentation.
+    /// Blank lines produce empty separator tasks.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`TxtodoError::Parse`] if any line cannot be parsed.
     pub fn parse_file(&self, content: &str) -> Result<Vec<Task>, TxtodoError> {
         let lines: Vec<&str> = content.split('\n').collect();
 
