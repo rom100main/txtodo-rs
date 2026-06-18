@@ -7,30 +7,71 @@ use crate::task::Task;
 use crate::task::TaskPatch;
 use std::fs;
 
+/// Input accepted by [`TodoTxt::add`] and related methods.
+///
+/// This enum allows callers to pass either a raw todo.txt line (as `&str` or `String`) or a pre-parsed [`Task`].
+/// Conversion from `&str` and `String` is provided via [`From`] impls so callers can write:
+///
+/// ```
+/// use txtodo::*;
+/// let options = TodoOptions::default();
+/// let mut todo = TodoTxt::new(options)?;
+/// todo.add("(A) Buy milk @home")?;      // from &str
+/// # Ok::<(), TxtodoError>(())
+/// ```
 pub enum TaskInput {
+    /// A raw todo.txt line that still needs to be parsed.
     Line(String),
+    /// An already-parsed [`Task`] that can be added directly.
     Task(Task),
 }
 
+/// Converts a `&str` into [`TaskInput::Line`].
 impl From<&str> for TaskInput {
     fn from(s: &str) -> Self {
         TaskInput::Line(s.to_string())
     }
 }
 
+/// Converts a `String` into [`TaskInput::Line`].
 impl From<String> for TaskInput {
     fn from(s: String) -> Self {
         TaskInput::Line(s)
     }
 }
 
+/// Converts a [`Task`] into [`TaskInput::Task`].
 impl From<Task> for TaskInput {
     fn from(t: Task) -> Self {
         TaskInput::Task(t)
     }
 }
 
+/// The main entry point for managing todo.txt tasks.
+///
+/// `TodoTxt` holds a parsed task list and provides methods to load, save, query, add, update, and remove tasks.
+/// When [`TodoOptions::auto_save`] is enabled, every mutating operation persists changes to disk automatically.
+///
+/// # Examples
+///
+/// ```no_run
+/// use txtodo::*;
+///
+/// fn main() -> Result<(), TxtodoError> {
+///     let options = TodoOptions {
+///         file_path: Some("todo.txt".into()),
+///         ..Default::default()
+///     };
+///     let mut todo = TodoTxt::new(options)?;
+///     todo.load(None)?;
+///     todo.add("(A) Write docs @work")?;
+///     let tasks = todo.list();
+///     println!("{} tasks loaded", tasks.len());
+///     Ok(())
+/// }
+/// ```
 pub struct TodoTxt {
+    /// The current list of top-level tasks. Subtasks are nested inside each [`Task`].
     pub tasks: Vec<Task>,
     pub(crate) file_path: Option<String>,
     pub(crate) auto_save: bool,
@@ -52,6 +93,24 @@ impl std::fmt::Debug for TodoTxt {
 }
 
 impl TodoTxt {
+    /// Creates a new `TodoTxt` instance from the given [`TodoOptions`].
+    ///
+    /// The returned instance has an empty task list.
+    /// Call [`load`](Self::load) to populate it from a file.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`TxtodoError`] if the configured extensions fail to initialise.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use txtodo::*;
+    /// let options = TodoOptions::default();
+    /// let todo = TodoTxt::new(options)?;
+    /// assert!(todo.list().is_empty());
+    /// # Ok::<(), TxtodoError>(())
+    /// ```
     pub fn new(options: TodoOptions) -> Result<Self, TxtodoError> {
         let handle_subtasks = options.handle_subtasks;
         let handler = ExtensionHandler::with_extensions(options.extensions.clone())?;
@@ -71,6 +130,28 @@ impl TodoTxt {
         })
     }
 
+    /// Loads tasks from a todo.txt file.
+    ///
+    /// If `file_path` is `Some`, that path is used;
+    /// otherwise the path configured at construction time is used.
+    /// When no path is available an error is returned.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`TxtodoError`] if the file cannot be read or the content cannot be parsed.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use txtodo::*;
+    /// let options = TodoOptions {
+    ///     file_path: Some("todo.txt".into()),
+    ///     ..Default::default()
+    /// };
+    /// let mut todo = TodoTxt::new(options)?;
+    /// todo.load(None)?;
+    /// # Ok::<(), TxtodoError>(())
+    /// ```
     pub fn load(&mut self, file_path: Option<&str>) -> Result<(), TxtodoError> {
         let path_str = resolve_path(self.file_path.as_deref(), file_path)?;
         let content = fs::read_to_string(&path_str)?;
@@ -81,6 +162,29 @@ impl TodoTxt {
         Ok(())
     }
 
+    /// Saves the current task list to a todo.txt file.
+    ///
+    /// If `file_path` is `Some`, that path is used;
+    /// otherwise the path configured at construction time is used.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`TxtodoError`] if no file path is available,
+    /// the tasks cannot be serialised, or the file cannot be written.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use txtodo::*;
+    /// let options = TodoOptions {
+    ///     file_path: Some("todo.txt".into()),
+    ///     ..Default::default()
+    /// };
+    /// let mut todo = TodoTxt::new(options)?;
+    /// todo.load(None)?;
+    /// todo.save(None)?;
+    /// # Ok::<(), TxtodoError>(())
+    /// ```
     pub fn save(&self, file_path: Option<&str>) -> Result<(), TxtodoError> {
         let path_str = resolve_path(self.file_path.as_deref(), file_path)?;
         let content = self.serializer.serialize_tasks(&self.tasks)?;
@@ -88,25 +192,63 @@ impl TodoTxt {
         Ok(())
     }
 
+    /// Enables or disables automatic saving after every mutation.
+    ///
+    /// When enabled, any method that modifies the task list will automatically call [`save`](Self::save) if a file path is configured.
     pub fn set_auto_save(&mut self, on: bool) {
         self.auto_save = on;
     }
 
+    /// Returns a shared reference to the [`ExtensionHandler`].
     #[must_use]
     pub fn extension_handler(&self) -> &ExtensionHandler {
         &self.handler
     }
 
+    /// Returns a mutable reference to the [`ExtensionHandler`].
     #[must_use]
     pub fn extension_handler_mut(&mut self) -> &mut ExtensionHandler {
         &mut self.handler
     }
 
+    /// Returns all tasks (including subtasks) as a flat list.
+    ///
+    /// The list is in pre-order depth-first order: a parent appears before its subtasks.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use txtodo::*;
+    /// let options = TodoOptions::default();
+    /// let mut todo = TodoTxt::new(options)?;
+    /// todo.add("Buy groceries")?;
+    /// assert_eq!(todo.list().len(), 1);
+    /// # Ok::<(), TxtodoError>(())
+    /// ```
     #[must_use]
     pub fn list(&self) -> Vec<&Task> {
         self.list_filtered(None, None)
     }
 
+    /// Returns all tasks as a flat list, optionally filtered and sorted.
+    ///
+    /// When `filter` is `Some`, only tasks matching the predicate are included.
+    /// When `sorter` is `Some`, the resulting list is sorted according to the comparator.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use txtodo::*;
+    /// use std::rc::Rc;
+    /// let options = TodoOptions::default();
+    /// let mut todo = TodoTxt::new(options)?;
+    /// todo.add("(A) Urgent task")?;
+    /// todo.add("(B) Low priority")?;
+    /// let filter: TaskFilter = Rc::new(|t: &Task| t.priority == Some(Priority('A')));
+    /// let high: Vec<&Task> = todo.list_filtered(Some(&filter), None);
+    /// assert_eq!(high.len(), 1);
+    /// # Ok::<(), TxtodoError>(())
+    /// ```
     #[must_use]
     pub fn list_filtered(
         &self,
@@ -126,6 +268,23 @@ impl TodoTxt {
         flat
     }
 
+    /// Returns a clone of the task tree, keeping only tasks that match the filter.
+    /// Subtasks of a matching parent are preserved.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use txtodo::*;
+    /// use std::rc::Rc;
+    /// let options = TodoOptions::default();
+    /// let mut todo = TodoTxt::new(options)?;
+    /// todo.add("(A) Important")?;
+    /// todo.add("(B) Normal")?;
+    /// let filter: TaskFilter = Rc::new(|t: &Task| t.priority == Some(Priority('A')));
+    /// let filtered = todo.filter(&filter);
+    /// assert_eq!(filtered.len(), 1);
+    /// # Ok::<(), TxtodoError>(())
+    /// ```
     #[must_use]
     pub fn filter(&self, filter: &crate::TaskFilter) -> Vec<Task> {
         let mut out = Vec::new();
@@ -137,10 +296,34 @@ impl TodoTxt {
         out
     }
 
+    /// Sorts tasks in-place using the given comparator.
+    ///
+    /// Sorting is applied recursively: each level of the task tree is sorted independently.
     pub fn sort(&mut self, sorter: &crate::TaskSorter) {
         sort_recursive(&mut self.tasks, sorter);
     }
 
+    /// Adds a single task to the list.
+    ///
+    /// Accepts anything that implements `Into<TaskInput>`, including `&str`, `String`, and [`Task`].
+    /// If subtask handling is enabled, the task is inserted into the tree at the correct position
+    /// based on its indent level.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`TxtodoError`] if the input cannot be parsed or auto-save is
+    /// enabled and the file cannot be written.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use txtodo::*;
+    /// let options = TodoOptions::default();
+    /// let mut todo = TodoTxt::new(options)?;
+    /// todo.add("(A) Buy milk @home")?;
+    /// assert_eq!(todo.list().len(), 1);
+    /// # Ok::<(), TxtodoError>(())
+    /// ```
     pub fn add(&mut self, input: impl Into<TaskInput>) -> Result<(), TxtodoError> {
         let input = input.into();
         let task = match input {
@@ -155,6 +338,27 @@ impl TodoTxt {
         self.save_if_needed()
     }
 
+    /// Adds multiple tasks to the list in a single operation.
+    ///
+    /// Each item in the iterator can be a `&str`, `String`, or [`Task`].
+    /// When subtask handling is enabled, the entire batch is parsed and
+    /// inserted into the tree atomically.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`TxtodoError`] if any input cannot be parsed
+    /// or auto-save is enabled and the file cannot be written.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use txtodo::*;
+    /// let options = TodoOptions::default();
+    /// let mut todo = TodoTxt::new(options)?;
+    /// todo.add_many(["Task 1", "Task 2", "Task 3"])?;
+    /// assert_eq!(todo.list().len(), 3);
+    /// # Ok::<(), TxtodoError>(())
+    /// ```
     pub fn add_many(
         &mut self,
         inputs: impl IntoIterator<Item = impl Into<TaskInput>>,
@@ -178,6 +382,29 @@ impl TodoTxt {
         self.save_if_needed()
     }
 
+    /// Inserts a task at the given position in the flat task list.
+    ///
+    /// Negative indices count from the end of the list (e.g., `-1` is the last position).
+    /// If the index is beyond the end, the task is appended.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`TxtodoError`] if the input cannot be parsed
+    /// or auto-save is enabled and the file cannot be written.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use txtodo::*;
+    /// let options = TodoOptions::default();
+    /// let mut todo = TodoTxt::new(options)?;
+    /// todo.add("First")?;
+    /// todo.add("Third")?;
+    /// todo.insert(1, "Second")?;
+    /// let descs: Vec<&str> = todo.list().iter().map(|t| t.description.as_str()).collect();
+    /// assert_eq!(descs, vec!["First", "Second", "Third"]);
+    /// # Ok::<(), TxtodoError>(())
+    /// ```
     pub fn insert(&mut self, index: i64, input: impl Into<TaskInput>) -> Result<(), TxtodoError> {
         let input = input.into();
         let task = match input {
@@ -210,6 +437,27 @@ impl TodoTxt {
         self.save_if_needed()
     }
 
+    /// Marks tasks as completed by their 1-based indices.
+    ///
+    /// Negative indices count from the end (e.g., `-1` is the last task).
+    /// Duplicate indices are silently ignored.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`TxtodoError`] if any index is out of bounds
+    /// or auto-save is enabled and the file cannot be written.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use txtodo::*;
+    /// let options = TodoOptions::default();
+    /// let mut todo = TodoTxt::new(options)?;
+    /// todo.add("Buy groceries")?;
+    /// todo.mark([0_i64])?;
+    /// assert!(todo.list()[0].completed);
+    /// # Ok::<(), TxtodoError>(())
+    /// ```
     pub fn mark(&mut self, numbers: impl IntoIterator<Item = i64>) -> Result<(), TxtodoError> {
         let nums: Vec<i64> = numbers.into_iter().collect();
         let flat_len = self.list().len();
@@ -230,6 +478,29 @@ impl TodoTxt {
         self.save_if_needed()
     }
 
+    /// Unmarks tasks (sets them as not completed) by their indices.
+    ///
+    /// Negative indices count from the end (e.g., `-1` is the last task).
+    /// Duplicate indices are silently ignored.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`TxtodoError`] if any index is out of bounds
+    /// or auto-save is enabled and the file cannot be written.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use txtodo::*;
+    /// let options = TodoOptions::default();
+    /// let mut todo = TodoTxt::new(options)?;
+    /// todo.add("Buy groceries")?;
+    /// todo.mark([0_i64])?;
+    /// assert!(todo.list()[0].completed);
+    /// todo.unmark([0_i64])?;
+    /// assert!(!todo.list()[0].completed);
+    /// # Ok::<(), TxtodoError>(())
+    /// ```
     pub fn unmark(&mut self, numbers: impl IntoIterator<Item = i64>) -> Result<(), TxtodoError> {
         let nums: Vec<i64> = numbers.into_iter().collect();
         let flat_len = self.list().len();
@@ -248,6 +519,29 @@ impl TodoTxt {
         self.save_if_needed()
     }
 
+    /// Removes tasks by their indices.
+    ///
+    /// Negative indices count from the end (e.g., `-1` is the last task).
+    /// Duplicate indices are silently ignored.
+    /// Removal proceeds in reverse order so that earlier indices remain valid.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`TxtodoError`] if any index is out of bounds
+    /// or auto-save is enabled and the file cannot be written.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use txtodo::*;
+    /// let options = TodoOptions::default();
+    /// let mut todo = TodoTxt::new(options)?;
+    /// todo.add("Task 1")?;
+    /// todo.add("Task 2")?;
+    /// todo.remove([1_i64])?;
+    /// assert_eq!(todo.list().len(), 1);
+    /// # Ok::<(), TxtodoError>(())
+    /// ```
     pub fn remove(&mut self, numbers: impl IntoIterator<Item = i64>) -> Result<(), TxtodoError> {
         let nums: Vec<i64> = numbers.into_iter().collect();
         let flat_len = self.list().len();
@@ -264,6 +558,31 @@ impl TodoTxt {
         self.save_if_needed()
     }
 
+    /// Updates a single task at the given index using a [`TaskPatch`].
+    ///
+    /// Negative indices count from the end (e.g., `-1` is the last task).
+    /// Only the fields present in the patch are modified.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`TxtodoError`] if the index is out of bounds
+    /// or auto-save is enabled and the file cannot be written.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use txtodo::*;
+    /// let options = TodoOptions::default();
+    /// let mut todo = TodoTxt::new(options)?;
+    /// todo.add("(A) Buy milk")?;
+    /// let patch = TaskPatch {
+    ///     priority: Some(Some(Priority('B'))),
+    ///     ..Default::default()
+    /// };
+    /// todo.update(0, patch)?;
+    /// assert_eq!(todo.list()[0].priority, Some(Priority('B')));
+    /// # Ok::<(), TxtodoError>(())
+    /// ```
     pub fn update(&mut self, index: i64, patch: TaskPatch) -> Result<(), TxtodoError> {
         let flat_len = self.list().len();
         let idx = resolve_index(index, flat_len)?;
@@ -273,6 +592,31 @@ impl TodoTxt {
         self.save_if_needed()
     }
 
+    /// Updates multiple tasks in a single operation.
+    ///
+    /// Each item in the iterator is a `(index, patch)` pair.
+    /// Negative indices count from the end (e.g., `-1` is the last task).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`TxtodoError`] if any index is out of bounds, the patch cannot be applied,
+    /// or auto-save is enabled and the file cannot be written.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use txtodo::*;
+    /// let options = TodoOptions::default();
+    /// let mut todo = TodoTxt::new(options)?;
+    /// todo.add("Task 1")?;
+    /// todo.add("Task 2")?;
+    /// let updates = vec![
+    ///     (0, TaskPatch { priority: Some(Some(Priority('A'))), ..Default::default() }),
+    ///     (1, TaskPatch { priority: Some(Some(Priority('B'))), ..Default::default() }),
+    /// ];
+    /// todo.update_many(updates)?;
+    /// # Ok::<(), TxtodoError>(())
+    /// ```
     pub fn update_many(
         &mut self,
         updates: impl IntoIterator<Item = (i64, TaskPatch)>,
@@ -344,6 +688,27 @@ fn resolve_path(current: Option<&str>, given: Option<&str>) -> Result<String, Tx
     Err(TxtodoError::Generic("No file path specified".to_string()))
 }
 
+/// Converts a signed index into a valid `usize` within the given range.
+///
+/// Negative values wrap from the end (`-1` = last element)
+/// and are validated against `len`.
+/// `0` and `-0` are treated specially: when `len` is `0` they succeed (wrapping to `0`),
+/// otherwise `-0` times out as out of bounds.
+///
+/// # Errors
+///
+/// Returns [`TxtodoError::IndexOutOfBounds`] if the resolved index does not
+/// fall within the range for `len`.
+///
+/// # Examples
+///
+/// ```
+/// # use txtodo::resolve_index;
+/// assert_eq!(resolve_index(2, 5).unwrap(), 2);
+/// assert_eq!(resolve_index(-1, 5).unwrap(), 4);
+/// assert_eq!(resolve_index(-5, 5).unwrap(), 0);
+/// assert!(resolve_index(5, 5).is_err());
+/// ```
 pub fn resolve_index(original: i64, len: usize) -> Result<usize, TxtodoError> {
     if original < 0 {
         let wrapped = (len as i64) + original;
