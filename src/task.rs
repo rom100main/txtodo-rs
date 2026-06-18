@@ -1,15 +1,31 @@
 use crate::date_utils;
 use crate::error::TxtodoError;
-use crate::extension::ExtensionHandler;
 use indexmap::IndexMap;
 use std::cmp::Ordering;
 use std::fmt;
 use std::ptr::NonNull;
 
+/// A single uppercase A–Z character representing task priority.
+///
+/// `(A)` is the highest priority, `(Z)` the lowest.
+/// Displayed in parentheses in the todo.txt format, e.g. `(A)`.
+///
+/// # Examples
+///
+/// ```rust
+/// # use txtodo::*;
+/// fn main() -> Result<(), TxtodoError> {
+///     let p = Priority::from_token("(A)")?;
+///     assert_eq!(p.as_char(), 'A');
+///     assert_eq!(p.to_string(), "(A)");
+///     Ok(())
+/// }
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Priority(pub char);
 
 impl Priority {
+    /// All 26 priority levels from `A` (highest) to `Z` (lowest).
     pub const ALL: [Priority; 26] = [
         Priority('A'),
         Priority('B'),
@@ -39,6 +55,26 @@ impl Priority {
         Priority('Z'),
     ];
 
+    /// Parses a priority from a token such as `"(A)"` or `"A"`.
+    ///
+    /// The token must be either a single ASCII uppercase character or
+    /// a three-character string wrapped in parentheses (e.g. `(B)`).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`TxtodoError::Priority`] if the token is not a valid
+    /// uppercase ASCII letter in the expected format.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use txtodo::*;
+    /// fn main() -> Result<(), TxtodoError> {
+    ///     let p = Priority::from_token("(C)")?;
+    ///     assert_eq!(p.as_char(), 'C');
+    ///     Ok(())
+    /// }
+    /// ```
     pub fn from_token(token: &str) -> Result<Self, TxtodoError> {
         let inner = if token.starts_with('(') && token.ends_with(')') && token.len() == 3 {
             &token[1..2]
@@ -61,6 +97,7 @@ impl Priority {
         Ok(Priority(ch))
     }
 
+    /// Returns the inner `A`–`Z` character.
     #[must_use]
     pub fn as_char(self) -> char {
         self.0
@@ -73,16 +110,28 @@ impl fmt::Display for Priority {
     }
 }
 
+/// A value stored by an [extension](crate::extension::ExtensionHandler)
+/// in a task's metadata.
+///
+/// Extensions map string keys to `ExtensionValue`s,
+/// enabling typed custom fields beyond the standard todo.txt format.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ExtensionValue {
+    /// A UTF-8 text value.
     String(String),
+    /// A 64-bit floating-point numeric value.
     Number(f64),
+    /// A boolean flag.
     Boolean(bool),
+    /// A calendar date (no time component).
     Date(time::Date),
+    /// An ordered collection of [`ExtensionValue`]s.
     Array(Vec<ExtensionValue>),
 }
 
 impl ExtensionValue {
+    /// Deep structural equality check that compares nested [`Array`](ExtensionValue::Array)
+    /// contents element-by-element.
     #[must_use]
     pub fn equals(&self, other: &Self) -> bool {
         match (self, other) {
@@ -120,6 +169,12 @@ impl ExtensionValue {
         }
     }
 
+    /// Compares two values of the **same** variant, returning their ordering.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`TxtodoError::Extension`] if the two values are different
+    /// variants and cannot be compared.
     pub fn try_compare_to(&self, other: &Self) -> Result<Ordering, TxtodoError> {
         match (self, other) {
             (ExtensionValue::String(_), ExtensionValue::String(_))
@@ -156,39 +211,86 @@ impl fmt::Display for ExtensionValue {
     }
 }
 
+/// A single task parsed from a todo.txt line.
+///
+/// Tasks are the core domain type. Every field corresponds to a part of the [todo.txt](https://todotxt.org) specification
+/// plus txtodo extensions for subtasks and indentation.
 #[derive(Debug, Clone)]
 pub struct Task {
+    /// The original, unmodified line of text this task was parsed from.
     pub raw: String,
+    /// Whether the task is marked as done (`x` prefix).
     pub completed: bool,
+    /// Optional single-letter priority, e.g. [`Priority`]`(A)`.
     pub priority: Option<Priority>,
+    /// The date the task was created (second date token for incomplete tasks).
     pub creation_date: Option<time::Date>,
+    /// The date the task was completed (first date token after `x`).
     pub completion_date: Option<time::Date>,
+    /// The task text after stripping priority, dates, and the completion marker.
     pub description: String,
+    /// Project tags (`+project`) extracted from the description.
     pub projects: Vec<String>,
+    /// Context tags (`@context`) extracted from the description.
     pub contexts: Vec<String>,
+    /// Key-value pairs parsed by the active [`ExtensionHandler`].
     pub extensions: IndexMap<String, ExtensionValue>,
+    /// Child tasks indented beneath this task.
     pub subtasks: Vec<Task>,
+    /// Leading whitespace depth used to nest subtasks.
     pub indent_level: usize,
+    /// Pointer to the parent [`Task`], if this is a subtask.
     pub parent: Option<NonNull<Task>>,
 }
 
 impl Task {
+    /// Returns a reference to the parent [`Task`],
+    /// or `None` if this is a top-level task.
     #[must_use]
     pub fn parent(&self) -> Option<&Task> {
         self.parent.map(|p| unsafe { p.as_ref() })
     }
 }
 
+/// A partial update for a [`Task`].
+///
+/// Each field is `Option<Option<T>>`,
+/// `None` means "leave unchanged",
+/// while `Some(None)` means "clear the value"
+/// and `Some(v)` means "set to `v`".
+///
+/// # Examples
+///
+/// ```rust
+/// # use txtodo::*;
+/// fn main() -> Result<(), TxtodoError> {
+///     let patch = TaskPatch {
+///         description: Some("buy milk".into()),
+///         priority: Some(None), // clear priority
+///         ..Default::default()
+///     };
+///     Ok(())
+/// }
+/// ```
 #[derive(Debug, Default, Clone)]
 pub struct TaskPatch {
+    /// Replacement raw line, or `None` to keep the existing one.
     pub raw: Option<String>,
+    /// Override the completion flag, or `None` to keep it unchanged.
     pub completed: Option<bool>,
+    /// Set a new [`Priority`], `Some(None)` to clear it, or `None` to keep it.
     pub priority: Option<Option<Priority>>,
+    /// Set a new creation date, `Some(None)` to clear it, or `None` to keep it.
     pub creation_date: Option<Option<time::Date>>,
+    /// Set a new completion date, `Some(None)` to clear it, or `None` to keep it.
     pub completion_date: Option<Option<time::Date>>,
+    /// Replacement description text, or `None` to keep the existing one.
     pub description: Option<String>,
+    /// Replacement project tags, or `None` to keep the existing ones.
     pub projects: Option<Vec<String>>,
+    /// Replacement context tags, or `None` to keep the existing ones.
     pub contexts: Option<Vec<String>>,
+    /// Replacement extension map, or `None` to keep the existing one.
     pub extensions: Option<IndexMap<String, ExtensionValue>>,
 }
 
@@ -221,160 +323,5 @@ impl TaskPatch {
         if let Some(v) = self.extensions {
             task.extensions = v;
         }
-    }
-}
-
-fn get_indent_level(line: &str) -> usize {
-    line.chars().take_while(|c| c.is_whitespace()).count()
-}
-
-fn is_priority_token(token: &str) -> bool {
-    if token.len() != 3 {
-        return false;
-    }
-    let bytes = token.as_bytes();
-    bytes[0] == b'(' && bytes[2] == b')' && bytes[1].is_ascii_uppercase()
-}
-
-fn extract_projects_and_contexts(description: &str) -> (Vec<String>, Vec<String>) {
-    let mut projects = Vec::new();
-    let mut contexts = Vec::new();
-    let chars: Vec<char> = description.chars().collect();
-
-    let mut i = 0;
-    while i < chars.len() {
-        let c = chars[i];
-        if c == '+' && i + 1 < chars.len() {
-            let start = i + 1;
-            let mut end = start;
-            while end < chars.len() && (chars[end].is_ascii_alphanumeric() || chars[end] == '_') {
-                end += 1;
-            }
-            if end > start {
-                let proj: String = chars[start..end].iter().collect();
-                if !projects.contains(&proj) {
-                    projects.push(proj);
-                }
-            }
-            i = end;
-        } else if c == '@' && i + 1 < chars.len() {
-            let start = i + 1;
-            let mut end = start;
-            while end < chars.len() && (chars[end].is_ascii_alphanumeric() || chars[end] == '_') {
-                end += 1;
-            }
-            if end > start {
-                let ctx: String = chars[start..end].iter().collect();
-                if !contexts.contains(&ctx) {
-                    contexts.push(ctx);
-                }
-            }
-            i = end;
-        } else {
-            i += 1;
-        }
-    }
-    (projects, contexts)
-}
-
-pub fn build_task_from_line(
-    line: &str,
-    handler: &ExtensionHandler,
-    parent: Option<&Task>,
-) -> Result<Task, TxtodoError> {
-    let indent_level = get_indent_level(line);
-    let trimmed = line.trim();
-    let mut task = Task {
-        raw: line.to_string(),
-        completed: false,
-        priority: None,
-        creation_date: None,
-        completion_date: None,
-        description: String::new(),
-        projects: Vec::new(),
-        contexts: Vec::new(),
-        extensions: IndexMap::new(),
-        subtasks: Vec::new(),
-        indent_level,
-        parent: None,
-    };
-
-    if trimmed.starts_with("x ") {
-        task.completed = true;
-        parse_completed_task(trimmed, &mut task)?;
-    } else {
-        parse_incomplete_task(trimmed, &mut task)?;
-    }
-
-    let (projects, contexts) = extract_projects_and_contexts(&task.description);
-    task.projects = projects;
-    task.contexts = contexts;
-
-    task.extensions = handler.parse_extensions(&task.description, parent)?;
-
-    if let Some(p) = parent {
-        inherit_parent_properties(&mut task, p);
-    }
-
-    Ok(task)
-}
-
-fn parse_completed_task(line: &str, task: &mut Task) -> Result<(), TxtodoError> {
-    let parts: Vec<&str> = line.split(' ').collect();
-    let mut remaining: Vec<&str> = parts.into_iter().skip(1).collect();
-
-    if let Some(&first) = remaining.first()
-        && date_utils::is_date(first)
-    {
-        task.completion_date = Some(date_utils::parse_date(first)?);
-        remaining.remove(0);
-    }
-
-    if let Some(&first) = remaining.first()
-        && is_priority_token(first)
-    {
-        task.priority = Some(Priority::from_token(first)?);
-        remaining.remove(0);
-    }
-
-    if let Some(&first) = remaining.first()
-        && date_utils::is_date(first)
-    {
-        task.creation_date = Some(date_utils::parse_date(first)?);
-        remaining.remove(0);
-    }
-
-    task.description = remaining.join(" ");
-    Ok(())
-}
-
-fn parse_incomplete_task(line: &str, task: &mut Task) -> Result<(), TxtodoError> {
-    let parts: Vec<&str> = line.split(' ').collect();
-    let mut remaining: Vec<&str> = parts.into_iter().collect();
-
-    if let Some(&first) = remaining.first()
-        && is_priority_token(first)
-    {
-        task.priority = Some(Priority::from_token(first)?);
-        remaining.remove(0);
-    }
-
-    if let Some(&first) = remaining.first()
-        && date_utils::is_date(first)
-    {
-        task.creation_date = Some(date_utils::parse_date(first)?);
-        remaining.remove(0);
-    }
-
-    task.description = remaining.join(" ");
-    Ok(())
-}
-
-fn inherit_parent_properties(task: &mut Task, parent: &Task) {
-    if task.projects.is_empty() && !parent.projects.is_empty() {
-        task.projects = parent.projects.clone();
-    }
-    if task.contexts.is_empty() && !parent.contexts.is_empty() {
-        task.contexts = parent.contexts.clone();
     }
 }
