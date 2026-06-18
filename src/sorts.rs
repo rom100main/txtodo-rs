@@ -21,7 +21,10 @@ pub enum SortDirection {
     Desc,
 }
 
-pub(crate) type TaskSorter = Rc<dyn Fn(&Task, &Task) -> Ordering>;
+/// A reference-counted comparator used to sort [`Task`]s.
+///
+/// See [`TaskSorts`] for common sorter constructors.
+pub type TaskSorter = Rc<dyn Fn(&Task, &Task) -> Ordering>;
 
 /// Utility struct providing factory methods for creating task sort functions.
 ///

@@ -1,6 +1,10 @@
-use crate::TaskFilter;
 use crate::task::{ExtensionValue, Task};
 use std::rc::Rc;
+
+/// A reference-counted predicate used to filter [`Task`]s.
+///
+/// See [`TaskFilters`] for common filter constructors.
+pub type TaskFilter = Rc<dyn Fn(&Task) -> bool>;
 
 /// Utility struct providing factory methods for creating task filter functions.
 ///
