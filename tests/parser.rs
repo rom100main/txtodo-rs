@@ -1,14 +1,23 @@
 use txtodo::extension::ExtensionHandler;
-use txtodo::task::build_task_from_line;
 use txtodo::*;
 
 fn h() -> ExtensionHandler {
     ExtensionHandler::new()
 }
 
+fn t(line: &str) -> Task {
+    TodoTxtParser::with_handler(h()).parse_line(line).unwrap()
+}
+
+fn tp(line: &str, parent: &Task) -> Task {
+    TodoTxtParser::with_handler(h())
+        .parse_line_with_parent(line, Some(parent))
+        .unwrap()
+}
+
 #[test]
 fn parse_simple_incomplete() {
-    let t = build_task_from_line("Call Mom", &h(), None).unwrap();
+    let t = t("Call Mom");
     assert!(!t.completed);
     assert_eq!(t.priority, None);
     assert_eq!(t.creation_date, None);
@@ -17,7 +26,7 @@ fn parse_simple_incomplete() {
 
 #[test]
 fn parse_priority_and_date() {
-    let t = build_task_from_line("(A) 2023-10-24 Call Mom", &h(), None).unwrap();
+    let t = t("(A) 2023-10-24 Call Mom");
     assert_eq!(t.priority, Some(Priority('A')));
     assert!(t.creation_date.is_some());
     assert_eq!(t.description, "Call Mom");
@@ -25,7 +34,7 @@ fn parse_priority_and_date() {
 
 #[test]
 fn parse_completed() {
-    let t = build_task_from_line("x 2023-10-25 (A) 2023-10-24 Call Mom", &h(), None).unwrap();
+    let t = t("x 2023-10-25 (A) 2023-10-24 Call Mom");
     assert!(t.completed);
     assert!(t.completion_date.is_some());
     assert_eq!(t.priority, Some(Priority('A')));
@@ -34,7 +43,7 @@ fn parse_completed() {
 
 #[test]
 fn parse_completed_no_priority() {
-    let t = build_task_from_line("x 2025-01-02 2025-01-01 Completed task 1", &h(), None).unwrap();
+    let t = t("x 2025-01-02 2025-01-01 Completed task 1");
     assert!(t.completed);
     assert!(t.completion_date.is_some());
     assert!(t.creation_date.is_some());
@@ -44,14 +53,14 @@ fn parse_completed_no_priority() {
 
 #[test]
 fn parse_projects_and_contexts() {
-    let t = build_task_from_line("Call +Family @phone", &h(), None).unwrap();
+    let t = t("Call +Family @phone");
     assert_eq!(t.projects, vec!["Family".to_string()]);
     assert_eq!(t.contexts, vec!["phone".to_string()]);
 }
 
 #[test]
 fn parse_string_extension() {
-    let t = build_task_from_line("Task name:Romain", &h(), None).unwrap();
+    let t = t("Task name:Romain");
     assert!(t.extensions.contains_key("name"));
     match t.extensions.get("name").unwrap() {
         ExtensionValue::String(s) => assert_eq!(s, "Romain"),
@@ -61,7 +70,7 @@ fn parse_string_extension() {
 
 #[test]
 fn parse_number_extension() {
-    let t = build_task_from_line("Task n:42", &h(), None).unwrap();
+    let t = t("Task n:42");
     match t.extensions.get("n").unwrap() {
         ExtensionValue::Number(n) => assert_eq!(*n, 42.0),
         _ => panic!("expected number"),
@@ -71,14 +80,14 @@ fn parse_number_extension() {
 #[test]
 fn parse_boolean_extension() {
     for v in &["true", "false", "yes", "no", "y", "n", "on", "off"] {
-        let t = build_task_from_line(&format!("Task b:{v}"), &h(), None).unwrap();
+        let t = t(&format!("Task b:{v}"));
         assert!(t.extensions.contains_key("b"), "failed for {v}");
     }
 }
 
 #[test]
 fn parse_date_extension() {
-    let t = build_task_from_line("Task due:2024-01-15", &h(), None).unwrap();
+    let t = t("Task due:2024-01-15");
     match t.extensions.get("due").unwrap() {
         ExtensionValue::Date(d) => assert_eq!(d.to_string(), "2024-01-15"),
         _ => panic!("expected date"),
@@ -87,7 +96,7 @@ fn parse_date_extension() {
 
 #[test]
 fn parse_array_extension() {
-    let t = build_task_from_line("Task tags:home,work", &h(), None).unwrap();
+    let t = t("Task tags:home,work");
     match t.extensions.get("tags").unwrap() {
         ExtensionValue::Array(a) => {
             assert_eq!(a.len(), 2);
@@ -100,7 +109,7 @@ fn parse_array_extension() {
 
 #[test]
 fn parse_bracket_wrapped() {
-    let t = build_task_from_line("Task w:(1)", &h(), None).unwrap();
+    let t = t("Task w:(1)");
     match t.extensions.get("w").unwrap() {
         ExtensionValue::Number(n) => assert_eq!(*n, 1.0),
         _ => panic!("expected number"),
@@ -109,7 +118,7 @@ fn parse_bracket_wrapped() {
 
 #[test]
 fn parse_quoted_string() {
-    let t = build_task_from_line(r#"Task q:"hello""#, &h(), None).unwrap();
+    let t = t(r#"Task q:"hello""#);
     match t.extensions.get("q").unwrap() {
         ExtensionValue::String(s) => assert_eq!(s, "hello"),
         _ => panic!("expected string"),
@@ -118,7 +127,7 @@ fn parse_quoted_string() {
 
 #[test]
 fn parse_nested_brackets() {
-    let t = build_task_from_line("Task w:[[2]]", &h(), None).unwrap();
+    let t = t("Task w:[[2]]");
     match t.extensions.get("w").unwrap() {
         ExtensionValue::Number(n) => assert_eq!(*n, 2.0),
         _ => panic!("expected number"),
@@ -127,15 +136,15 @@ fn parse_nested_brackets() {
 
 #[test]
 fn subtask_inherits_parent_projects() {
-    let parent = build_task_from_line("Parent +Project", &h(), None).unwrap();
-    let child = build_task_from_line("    Child", &h(), Some(&parent)).unwrap();
+    let parent = t("Parent +Project");
+    let child = tp("    Child", &parent);
     assert_eq!(child.projects, vec!["Project".to_string()]);
 }
 
 #[test]
 fn subtask_does_not_inherit_priority() {
-    let parent = build_task_from_line("(A) Parent", &h(), None).unwrap();
-    let child = build_task_from_line("    Child", &h(), Some(&parent)).unwrap();
+    let parent = t("(A) Parent");
+    let child = tp("    Child", &parent);
     assert_eq!(child.priority, None);
 }
 
@@ -150,7 +159,8 @@ fn custom_extension_with_parser() {
             })),
         )
         .unwrap();
-    let t = build_task_from_line("Task estimate:2h", &handler, None).unwrap();
+    let p = TodoTxtParser::with_handler(handler);
+    let t = p.parse_line("Task estimate:2h").unwrap();
     match t.extensions.get("estimate").unwrap() {
         ExtensionValue::Number(n) => assert_eq!(*n, 2.0),
         _ => panic!("expected number"),
@@ -161,8 +171,11 @@ fn custom_extension_with_parser() {
 fn inherit_true_default_copies_extension() {
     let mut handler = ExtensionHandler::new();
     handler.add_extension(TodoTxtExtension::new("due")).unwrap();
-    let parent = build_task_from_line("Task due:2024-01-01", &handler, None).unwrap();
-    let child = build_task_from_line("    Child", &handler, Some(&parent)).unwrap();
+    let p = TodoTxtParser::with_handler(handler);
+    let parent = p.parse_line("Task due:2024-01-01").unwrap();
+    let child = p
+        .parse_line_with_parent("    Child", Some(&parent))
+        .unwrap();
     assert!(child.extensions.contains_key("due"));
 }
 
@@ -172,8 +185,11 @@ fn inherit_false_blocks_extension() {
     handler
         .add_extension(TodoTxtExtension::new("due").inherit(false))
         .unwrap();
-    let parent = build_task_from_line("Task due:2024-01-01", &handler, None).unwrap();
-    let child = build_task_from_line("    Child", &handler, Some(&parent)).unwrap();
+    let p = TodoTxtParser::with_handler(handler);
+    let parent = p.parse_line("Task due:2024-01-01").unwrap();
+    let child = p
+        .parse_line_with_parent("    Child", Some(&parent))
+        .unwrap();
     assert!(!child.extensions.contains_key("due"));
 }
 

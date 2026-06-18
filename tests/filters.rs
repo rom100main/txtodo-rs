@@ -1,9 +1,7 @@
-use txtodo::extension::ExtensionHandler;
-use txtodo::task::build_task_from_line;
 use txtodo::*;
 
 fn t(desc: &str) -> Task {
-    build_task_from_line(desc, &ExtensionHandler::new(), None).unwrap()
+    TodoTxtParser::new().parse_line(desc).unwrap()
 }
 
 #[test]

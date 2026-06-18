@@ -1,6 +1,5 @@
 use std::sync::Arc;
 use txtodo::extension::ExtensionHandler;
-use txtodo::task::build_task_from_line;
 use txtodo::*;
 
 #[test]
@@ -77,7 +76,8 @@ fn round_trip_custom_extension() {
 #[test]
 fn completed_no_priority_serialization() {
     let s = TodoTxtSerializer::new();
-    let t = build_task_from_line("x 2023-10-25 Task", &ExtensionHandler::new(), None).unwrap();
+    let p = TodoTxtParser::new();
+    let t = p.parse_line("x 2023-10-25 Task").unwrap();
     let out = s.serialize_task(&t).unwrap();
     assert_eq!(out[0], "x 2023-10-25 Task");
 }
