@@ -697,7 +697,7 @@ fn resolve_path(current: Option<&str>, given: Option<&str>) -> Result<String, Tx
 ///
 /// # Errors
 ///
-/// Returns [`TxtodoError::IndexOutOfBounds`] if the resolved index does not
+/// Returns [`TxtodoError::Generic`] if the resolved index does not
 /// fall within the range for `len`.
 ///
 /// # Examples

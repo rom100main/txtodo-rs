@@ -28,7 +28,7 @@ pub type TaskSorter = Rc<dyn Fn(&Task, &Task) -> Ordering>;
 
 /// Utility struct providing factory methods for creating task sort functions.
 ///
-/// All methods return a [`TaskSorter`](crate::TaskSorter) (a boxed closure)
+/// All methods return a [`TaskSorter`] (a boxed closure)
 /// that can be used with task listing functions to order tasks.
 /// Use [`TaskSorts::composite`] or [`TaskSorts::then`] to combine multiple sorters for multi-level sorting.
 ///

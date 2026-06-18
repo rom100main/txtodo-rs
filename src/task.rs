@@ -233,7 +233,7 @@ pub struct Task {
     pub projects: Vec<String>,
     /// Context tags (`@context`) extracted from the description.
     pub contexts: Vec<String>,
-    /// Key-value pairs parsed by the active [`ExtensionHandler`].
+    /// Key-value pairs parsed by the active extension handler.
     pub extensions: IndexMap<String, ExtensionValue>,
     /// Child tasks indented beneath this task.
     pub subtasks: Vec<Task>,
