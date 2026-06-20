@@ -2,6 +2,10 @@
 
 A Rust todo.txt parser/serializer with extension support and subtask handling.
 
+[![Crates.io](https://img.shields.io/crates/v/txtodo.svg)](https://crates.io/crates/txtodo)
+[![Documentation](https://docs.rs/txtodo/badge.svg)](https://docs.rs/txtodo)
+[![License](https://img.shields.io/crates/l/txtodo.svg)](https://github.com/rom100main/txtodo-rs#license)
+
 A TypeScript version is available at [txtodo-ts](https://github.com/rom100main/txtodo).
 
 ## Features
@@ -276,7 +280,7 @@ Each variant has a `code()` method returning a string identifier (e.g. `"PARSE_E
 
 ## Support
 
-For bug reports and feature requests, please fill an issue at [GitHub repository](https://github.com/rom100main/todotxt-ts/issues).
+For bug reports and feature requests, please fill an issue at [GitHub repository](https://github.com/rom100main/txtodo-rs/issues).
 
 ## Changelog
 
