@@ -2,9 +2,10 @@
 name = "txtodo"
 version = "1.0.0"
 edition = "2024"
+rust-version = "1.85"
 description = "A todo.txt parser/serializer with extension support and subtask handling"
 license = "MIT"
-repository = "https://github.com/rom100main/txtodo"
+repository = "https://github.com/rom100main/txtodo-rs"
 readme = "README.md"
 keywords = ["todo", "todo.txt", "parser", "task", "productivity"]
 categories = ["parser-implementations"]
@@ -21,3 +22,6 @@ time = { version = "0.3.47", features = ["parsing", "formatting", "macros"] }
 
 [dev-dependencies]
 pretty_assertions = "1"
+
+[package.metadata.docs.rs]
+rust-version = "1.85"
