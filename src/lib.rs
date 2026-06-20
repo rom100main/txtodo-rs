@@ -43,6 +43,6 @@ pub use filters::{TaskFilter, TaskFilters};
 pub use options::TodoOptions;
 pub use parser::TodoTxtParser;
 pub use serializer::TodoTxtSerializer;
-pub use sorts::{SortDirection, TaskSorts, TaskSorter};
+pub use sorts::{SortDirection, TaskSorter, TaskSorts};
 pub use task::{ExtensionValue, Priority, Task, TaskPatch};
 pub use todotxt::{TaskInput, TodoTxt, resolve_index};
