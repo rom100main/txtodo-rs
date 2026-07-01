@@ -7,7 +7,7 @@ description = "A todo.txt parser/serializer with extension support and subtask h
 license = "MIT"
 repository = "https://github.com/rom100main/txtodo-rs"
 readme = "README.md"
-keywords = ["todo", "todo.txt", "parser", "task", "productivity"]
+keywords = ["todo", "todo-txt", "parser", "task", "productivity"]
 categories = ["parser-implementations"]
 exclude = ["CONTRIBUTING.md", "CHANGELOG.md", "todo.txt", "temp/", ".github/"]
 
