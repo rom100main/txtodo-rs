@@ -99,5 +99,46 @@ fn extension_at_start_not_duplicated() {
     let line = "n:2 blabla";
     let tasks = p.parse_file(line).unwrap();
     let out = s.serialize_tasks(&tasks).unwrap();
-    assert_eq!(out, "blabla n:2");
+    assert_eq!(out, "n:2 blabla");
+}
+
+#[test]
+fn extension_in_middle_preserves_position() {
+    let s = TodoTxtSerializer::new();
+    let p = TodoTxtParser::new();
+    let line = "Some text due:2024-01-15 some text";
+    let tasks = p.parse_file(line).unwrap();
+    let out = s.serialize_tasks(&tasks).unwrap();
+    assert_eq!(out, line);
+}
+
+#[test]
+fn custom_serializer_preserves_position() {
+    let mut handler = ExtensionHandler::new();
+    handler
+        .add_extension(
+            TodoTxtExtension::new("estimate")
+                .with_parser(Arc::new(|v: &str| {
+                    let n: f64 = v.trim_end_matches('h').parse().unwrap();
+                    Ok(ExtensionValue::Number(n))
+                }))
+                .with_serializer(Arc::new(|v: &ExtensionValue| Ok(format!("{v}h")))),
+        )
+        .unwrap();
+    let s = TodoTxtSerializer::with_handler(handler.clone());
+    let p = TodoTxtParser::with_handler(handler);
+    let line = "Some text estimate:2 more text";
+    let tasks = p.parse_file(line).unwrap();
+    let out = s.serialize_tasks(&tasks).unwrap();
+    assert_eq!(out, "Some text estimate:2h more text");
+}
+
+#[test]
+fn multiple_extensions_preserve_position() {
+    let s = TodoTxtSerializer::new();
+    let p = TodoTxtParser::new();
+    let line = "Task due:2024-01-15 more text pri:high end";
+    let tasks = p.parse_file(line).unwrap();
+    let out = s.serialize_tasks(&tasks).unwrap();
+    assert_eq!(out, line);
 }

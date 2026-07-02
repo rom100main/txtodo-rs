@@ -126,17 +126,13 @@ impl TodoTxtSerializer {
             }
         }
 
-        // Description with extensions stripped
-        let description_clean = strip_extension_tokens(&task.description);
+        // Description with extensions replaced in-place
+        let mut description = task.description.clone();
         let serialized_exts = self.handler.serialize_extensions(&task.extensions)?;
-        let exts_str = serialized_exts.join(" ");
-        let mut description = description_clean.trim().to_string();
-        if !exts_str.is_empty() {
-            if !description.is_empty() {
-                description.push(' ');
-            }
-            description.push_str(&exts_str);
+        for ext_token in &serialized_exts {
+            description = replace_extension_token(&description, ext_token);
         }
+        let description = description.trim().to_string();
 
         let prefix = prefix_parts.join(" ");
         let line = if !prefix.is_empty() {
@@ -155,16 +151,20 @@ impl TodoTxtSerializer {
     }
 }
 
-fn strip_extension_tokens(text: &str) -> String {
-    // Match pattern: (optional whitespace)(word chars)(:)(non-whitespace)+
-    // Mirrors regex /(\s+|^)\w+:[^\s]+/g
-    let mut out = String::with_capacity(text.len());
+fn replace_extension_token(text: &str, new_token: &str) -> String {
+    // Extract the key from the new token (everything before the first ':')
+    let key = match new_token.split_once(':') {
+        Some((k, _)) => k,
+        None => return text.to_string(),
+    };
+
     let chars: Vec<char> = text.chars().collect();
+    let new_chars: Vec<char> = new_token.chars().collect();
     let mut i = 0;
+
     while i < chars.len() {
         let at_start = i == 0;
         if at_start || chars[i].is_whitespace() {
-            let ws_start = i;
             while i < chars.len() && chars[i].is_whitespace() {
                 i += 1;
             }
@@ -173,33 +173,29 @@ fn strip_extension_tokens(text: &str) -> String {
                 i += 1;
             }
             if i > word_start && i < chars.len() && chars[i] == ':' {
-                let val_start = i + 1;
-                let mut val_end = val_start;
-                while val_end < chars.len() && !chars[val_end].is_whitespace() {
-                    val_end += 1;
+                let word: String = chars[word_start..i].iter().collect();
+                if word == key {
+                    let val_start = i + 1;
+                    let mut val_end = val_start;
+                    while val_end < chars.len() && !chars[val_end].is_whitespace() {
+                        val_end += 1;
+                    }
+                    if val_end > val_start {
+                        // Found the token, replace it in-place
+                        let mut result = String::with_capacity(
+                            word_start + new_chars.len() + chars.len() - val_end,
+                        );
+                        result.extend(chars[..word_start].iter());
+                        result.extend(new_chars.iter());
+                        result.extend(chars[val_end..].iter());
+                        return result;
+                    }
                 }
-                if val_end > val_start {
-                    // Whole token: drop the leading whitespace + token
-                    i = val_end;
-                    continue;
-                } else {
-                    // No value: emit word and continue
-                    let s: String = chars[ws_start..word_start].iter().collect();
-                    out.push_str(&s);
-                    let s: String = chars[word_start..i].iter().collect();
-                    out.push_str(&s);
-                    continue;
-                }
-            } else {
-                // Plain whitespace or start-of-string + word
-                let s: String = chars[ws_start..i].iter().collect();
-                out.push_str(&s);
-                continue;
             }
         } else {
-            out.push(chars[i]);
             i += 1;
         }
     }
-    out
+
+    text.to_string()
 }
