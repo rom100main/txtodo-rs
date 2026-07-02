@@ -1,6 +1,6 @@
 [package]
 name = "txtodo"
-version = "1.0.0"
+version = "1.0.1"
 edition = "2024"
 rust-version = "1.85"
 description = "A todo.txt parser/serializer with extension support and subtask handling"
